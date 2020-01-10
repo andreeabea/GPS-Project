@@ -27,6 +27,11 @@ namespace gps {
 	{
 		return cameraTarget;
 	}
+
+	glm::vec3 Camera::getCameraPosition()
+	{
+		return this->cameraPosition;
+	}
     
     void Camera::move(MOVE_DIRECTION direction, float speed)
     {

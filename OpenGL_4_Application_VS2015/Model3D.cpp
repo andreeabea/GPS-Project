@@ -11,6 +11,8 @@
 
 namespace gps {
 
+	bool isAlphaUsed = false;
+
 	Model3D::Model3D()
 	{
 
@@ -21,8 +23,9 @@ namespace gps {
 		ReadOBJ(fileName, NULL);
 	}
 
-	Model3D::Model3D(std::string fileName, std::string basePath)
+	Model3D::Model3D(std::string fileName, std::string basePath, bool alpha)
 	{
+		this->isAlphaUsed = alpha;
 		ReadOBJ(fileName, basePath);
 	}
 
@@ -206,10 +209,22 @@ namespace gps {
 		GLuint textureID;
 		glGenTextures(1, &textureID);
 		glBindTexture(GL_TEXTURE_2D, textureID);
+
+		GLint alpha;
+
+		if (this->isAlphaUsed == true)
+		{
+			alpha = GL_RGBA;
+		}
+		else {
+			alpha = GL_SRGB;
+		}
+
 		glTexImage2D(
 			GL_TEXTURE_2D,
 			0,
-			GL_SRGB, //GL_SRGB,//GL_RGBA,
+			//GL_SRGB, //GL_SRGB, GL_RGBA,
+			alpha,
 			x,
 			y,
 			0,

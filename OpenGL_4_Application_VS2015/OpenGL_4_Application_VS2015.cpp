@@ -29,8 +29,10 @@
 #include "Mesh.hpp"
 #include "SkyBox.hpp"
 
-int glWindowWidth = 640;
-int glWindowHeight = 480;
+//int glWindowWidth = 640;
+//int glWindowHeight = 480;
+int glWindowWidth = 1900;
+int glWindowHeight = 1060;
 int retina_width, retina_height;
 GLFWwindow* glWindow = NULL;
 
@@ -55,8 +57,14 @@ glm::vec3 lightDir;
 GLuint lightDirLoc;
 glm::vec3 lightColor;
 GLuint lightColorLoc;
+glm::vec3 lightPos;
+GLuint lightPosLoc;
+GLuint lightColorLoc2;
+glm::vec3 lightColor2;
+glm::vec3 lightPos2;
+GLuint lightPosLoc2;
 
-gps::Camera myCamera(glm::vec3(0.0f, 5.0f, 15.0f), glm::vec3(0.0f, 2.0f, 0.0f));
+gps::Camera myCamera(glm::vec3(0.0f, 5.0f, 70.0f), glm::vec3(0.0f, 2.0f, 0.0f));
 float cameraSpeed = 1.0f;
 
 bool pressedKeys[1024];
@@ -73,7 +81,9 @@ gps::Model3D treeModel;
 gps::Model3D treeModel2;
 gps::Model3D ground;
 gps::Model3D streetLight;
-gps::Model3D helicopter;
+gps::Model3D dog_body;
+gps::Model3D dog_tail;
+gps::Model3D airplane;
 
 gps::Shader myCustomShader;
 gps::Shader lightShader;
@@ -85,6 +95,8 @@ GLuint depthMapTexture;
 gps::SkyBox mySkyBox;
 gps::Shader skyboxShader;
 std::vector<const GLchar*> faces;
+
+float moveAirplane = 0;
 
 GLenum glCheckError_(const char *file, int line)
 {
@@ -122,10 +134,6 @@ void windowResizeCallback(GLFWwindow* window, int width, int height)
 	//send matrix data to shader
 	GLint projLoc = glGetUniformLocation(myCustomShader.shaderProgram, "projection");
 	glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
-
-	lightShader.useShaderProgram();
-
-	glUniformMatrix4fv(glGetUniformLocation(lightShader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
 	//set Viewport transform
 	glViewport(0, 0, retina_width, retina_height);
@@ -243,6 +251,19 @@ void processMovement()
 	{
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
+
+	if (pressedKeys[GLFW_KEY_V])
+	{
+		moveAirplane = 0;
+	}
+
+	if(moveAirplane < 100000)
+		moveAirplane += 5;
+}
+
+void correctCameraPosition()
+{
+
 }
 
 bool initOpenGLWindow()
@@ -330,22 +351,25 @@ void initFBOs()
 
 glm::mat4 computeLightSpaceTrMatrix()
 {
-	const GLfloat near_plane = 1.0f, far_plane = 60.0f;
-	glm::mat4 lightProjection = glm::ortho(-50.0f, 50.0f, -50.0f, 50.0f, near_plane, far_plane);
+	const GLfloat near_plane = 1.0f, far_plane = 150.0f;
+	glm::mat4 lightProjection = glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f, near_plane, far_plane);
 
 	glm::vec3 lightDirTr = glm::vec3(glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(lightDir, 1.0f));
-	glm::mat4 lightView = glm::lookAt(myCamera.getCameraTarget() + 1.0f * lightDirTr, myCamera.getCameraTarget(), glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 lightView = glm::lookAt(myCamera.getCameraPosition() + 1.5f * lightDirTr, myCamera.getCameraPosition(), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	return lightProjection * lightView;
 }
 
 void initModels()
 {
-	houseModel = gps::Model3D("objects/house/Farmhouse.obj", "objects/house/");
-	treeModel = gps::Model3D("objects/trees1/Tree1.obj", "objects/trees1/");
-	treeModel2 = gps::Model3D("objects/trees2/trees2.obj", "objects/trees2/");
-	ground = gps::Model3D("objects/ground/ground.obj", "objects/ground/");
-	streetLight = gps::Model3D("objects/street_light/cube.obj", "objects/street_light/");
+	houseModel = gps::Model3D("objects/house/Farmhouse.obj", "objects/house/", false);
+	treeModel = gps::Model3D("objects/trees1/Tree1.obj", "objects/trees1/", true);
+	treeModel2 = gps::Model3D("objects/trees2/trees2.obj", "objects/trees2/", true);
+	ground = gps::Model3D("objects/ground/ground.obj", "objects/ground/", false);
+	streetLight = gps::Model3D("objects/street_light/Street-Light-result.obj", "objects/street_light/", false);
+	airplane = gps::Model3D("objects/airplane/11803_Airplane_v1_l1.obj", "objects/airplane/",false);
+	dog_body = gps::Model3D("objects/dog/dog_body.obj", "objects/dog/", false);
+	dog_tail = gps::Model3D("objects/dog/dog_tail.obj", "objects/dog/", false);
 
 	faces.push_back("textures/mountain/front.tga");
 	faces.push_back("textures/mountain/back.tga");
@@ -380,18 +404,12 @@ void initUniforms()
 	viewLoc = glGetUniformLocation(myCustomShader.shaderProgram, "view");
 	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
 
-	//create rotation matrix
-	//model = glm::rotate(model, angle, glm::vec3(0, 1, 0));
-	//model = glm::rotate(model, 3.14f, glm::vec3(0, 1, 0));
-	//send matrix data to vertex shader
-	//glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-
 	normalMatrixLoc = glGetUniformLocation(myCustomShader.shaderProgram, "normalMatrix");
 
 	lightDirMatrixLoc = glGetUniformLocation(myCustomShader.shaderProgram, "lightDirMatrix");
 
 	//set the light direction (direction towards the light)
-	lightDir = glm::vec3(0.0f, 20.0f, 20.0f);
+	lightDir = glm::vec3(0.0f, 10.0f, 10.0f);
 	lightDirLoc = glGetUniformLocation(myCustomShader.shaderProgram, "lightDir");
 	glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDir));
 
@@ -400,8 +418,19 @@ void initUniforms()
 	lightColorLoc = glGetUniformLocation(myCustomShader.shaderProgram, "lightColor");
 	glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
 
-	lightShader.useShaderProgram();
-	glUniformMatrix4fv(glGetUniformLocation(lightShader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+	//set light color 2
+	lightColor2 = glm::vec3(1.0f, 1.0f, 0.2f);
+	lightColorLoc2 = glGetUniformLocation(myCustomShader.shaderProgram, "lightColor2");
+	glUniform3fv(lightColorLoc2, 1, glm::value_ptr(lightColor2));
+
+	lightPos = glm::vec3(-17, 20, 30);
+	lightPosLoc = glGetUniformLocation(myCustomShader.shaderProgram, "lightPos");
+	glUniform3fv(lightPosLoc, 1, glm::value_ptr(lightPos));
+
+	lightPos2 = glm::vec3(17, 20, 30);
+	lightPosLoc2 = glGetUniformLocation(myCustomShader.shaderProgram, "lightPos2");
+	glUniform3fv(lightPosLoc2, 1, glm::value_ptr(lightPos2));
+	
 }
 
 void renderHouseDepthMap(gps::Shader shader)
@@ -439,28 +468,37 @@ void renderHouse(gps::Shader shader)
 
 void renderGroundDepthMap(gps::Shader shader)
 {
-	//create model matrix for ground
-	model = glm::mat4(1.0);
-	model = glm::scale(model, glm::vec3(5, 5, 5));
-	//send model matrix to shader
-	glUniformMatrix4fv(glGetUniformLocation(shader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+	for (int i = 0; i < 9; i++)
+		for (int j = 0; j < 9; j++)
+		{
+			//create model matrix for ground
+			model = glm::mat4(1.0);
+			model = glm::translate(model, glm::vec3(-80 + 20 * i, 0, -80 + 20 * j));
+			//send model matrix to shader
+			glUniformMatrix4fv(glGetUniformLocation(shader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
 
-	ground.Draw(shader);
+			ground.Draw(shader);
+		}
 }
 
 void renderGround(gps::Shader shader)
 {
-	//model for ground
-	model = glm::mat4(1.0);
-	model = glm::scale(model, glm::vec3(5, 5, 5));
-	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+	for (int i = 0; i < 9; i++)
+		for (int j = 0; j < 9; j++)
+		{
+			//model for ground
+			model = glm::mat4(1.0);
+			model = glm::translate(model, glm::vec3(-80 + 20*i, 0, -80 + 20*j));
+			//model = glm::scale(model, glm::vec3(5, 5, 5));
+			glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
-	//create normal matrix
-	normalMatrix = glm::mat3(glm::inverseTranspose(view*model));
-	//send normal matrix data to shader
-	glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+			//create normal matrix
+			normalMatrix = glm::mat3(glm::inverseTranspose(view*model));
+			//send normal matrix data to shader
+			glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
 
-	ground.Draw(shader);
+			ground.Draw(shader);
+		}
 }
 
 void renderTrees1DepthMap(gps::Shader shader)
@@ -567,6 +605,129 @@ void renderTrees2(gps::Shader shader)
 	treeModel2.Draw(shader);
 }
 
+void renderStreetLightDepthMap(gps::Shader shader)
+{
+	model3 = glm::translate(glm::mat4(1.0f), glm::vec3(-10, 0, 30));
+	model3 = glm::scale(model3, glm::vec3(4, 4, 4));
+	model3 = glm::rotate(model3, glm::radians(90.0f), glm::vec3(0, 1, 0));
+	//send model matrix to shader
+	glUniformMatrix4fv(glGetUniformLocation(shader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model3));
+
+	streetLight.Draw(shader);
+
+	model3 = glm::translate(glm::mat4(1.0f), glm::vec3(10, 0, 30));
+	model3 = glm::scale(model3, glm::vec3(4, 4, 4));
+	model3 = glm::rotate(model3, glm::radians(-90.0f), glm::vec3(0, 1, 0));
+	//send model matrix to shader
+	glUniformMatrix4fv(glGetUniformLocation(shader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model3));
+
+	streetLight.Draw(shader);
+}
+
+void renderStreetLight(gps::Shader shader)
+{
+	model3 = glm::translate(glm::mat4(1.0f), glm::vec3(-10, 0, 30));
+	model3 = glm::scale(model3, glm::vec3(4, 4, 4));
+	model3 = glm::rotate(model3, glm::radians(90.0f), glm::vec3(0, 1, 0));
+	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model3));
+
+	//compute normal matrix
+	normalMatrix = glm::mat3(glm::inverseTranspose(view*model3));
+	//send normal matrix data to shader
+	glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+
+	//initialize the projection matrix
+	projection = glm::perspective(glm::radians(fov), (float)glWindowWidth / (float)glWindowHeight, 0.1f, 1000.0f);
+	//send matrix data to shader
+	projLoc = glGetUniformLocation(shader.shaderProgram, "projection");
+	glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+	streetLight.Draw(shader);
+
+	model3 = glm::translate(glm::mat4(1.0f), glm::vec3(10, 0, 30));
+	model3 = glm::scale(model3, glm::vec3(4, 4, 4));
+	model3 = glm::rotate(model3, glm::radians(-90.0f), glm::vec3(0, 1, 0));
+	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model3));
+
+	//compute normal matrix
+	normalMatrix = glm::mat3(glm::inverseTranspose(view*model3));
+	//send normal matrix data to shader
+	glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+
+	//initialize the projection matrix
+	projection = glm::perspective(glm::radians(fov), (float)glWindowWidth / (float)glWindowHeight, 0.1f, 1000.0f);
+	//send matrix data to shader
+	projLoc = glGetUniformLocation(shader.shaderProgram, "projection");
+	glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+	streetLight.Draw(shader);
+}
+
+void renderDogDepthMap(gps::Shader shader)
+{
+	model3 = glm::scale(model3, glm::vec3(0.02, 0.02, 0.02));
+	model3 = glm::rotate(model3, glm::radians(-90.0f), glm::vec3(1, 0, 0));
+	//send model matrix to shader
+	glUniformMatrix4fv(glGetUniformLocation(shader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model3));
+
+	dog_body.Draw(shader);
+}
+
+void renderDog(gps::Shader shader)
+{
+	model3 = glm::scale(model3, glm::vec3(0.02, 0.02, 0.02));
+	model3 = glm::rotate(model3, glm::radians(-90.0f), glm::vec3(1, 0, 0));
+	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model3));
+
+	//compute normal matrix
+	normalMatrix = glm::mat3(glm::inverseTranspose(view*model3));
+	//send normal matrix data to shader
+	glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+
+	//initialize the projection matrix
+	projection = glm::perspective(glm::radians(fov), (float)glWindowWidth / (float)glWindowHeight, 0.1f, 1000.0f);
+	//send matrix data to shader
+	projLoc = glGetUniformLocation(shader.shaderProgram, "projection");
+	glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+	dog_body.Draw(shader);
+
+
+}
+
+void renderAirplaneDepthMap(gps::Shader shader)
+{
+	model3 = glm::translate(model3, glm::vec3(-500 - moveAirplane, 200, 1000));
+	model3 = glm::scale(model3, glm::vec3(0.5, 0.5, 0.5));
+	model3 = glm::rotate(model3, glm::radians(-180.0f), glm::vec3(0, 0, 1));
+	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model3));
+	//send model matrix to shader
+	glUniformMatrix4fv(glGetUniformLocation(shader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model3));
+
+	airplane.Draw(shader);
+}
+
+void renderAirplane(gps::Shader shader)
+{
+	model3 = glm::translate(model3, glm::vec3(-500 - moveAirplane, 200, 1000));
+	model3 = glm::scale(model3, glm::vec3(0.5, 0.5, 0.5));
+	model3 = glm::rotate(model3, glm::radians(-180.0f), glm::vec3(0, 0, 1));
+	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model3));
+
+	//compute normal matrix
+	normalMatrix = glm::mat3(glm::inverseTranspose(view*model3));
+	//send normal matrix data to shader
+	glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+
+	//initialize the projection matrix
+	projection = glm::perspective(glm::radians(fov), (float)glWindowWidth / (float)glWindowHeight, 0.1f, 1000.0f);
+	//send matrix data to shader
+	projLoc = glGetUniformLocation(shader.shaderProgram, "projection");
+	glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+	airplane.Draw(shader);
+}
+
 void renderSkybox()
 {
 	skyboxShader.useShaderProgram();
@@ -579,6 +740,8 @@ void renderSkybox()
 
 	mySkyBox.Draw(skyboxShader, view, projection);
 }
+
+float deltaSore = 0;
 
 void renderScene()
 {
@@ -598,6 +761,9 @@ void renderScene()
 	renderGroundDepthMap(depthMapShader);
 	renderTrees1DepthMap(depthMapShader);
 	renderTrees2DepthMap(depthMapShader);
+	renderStreetLightDepthMap(depthMapShader);
+	renderDogDepthMap(depthMapShader);
+	renderAirplaneDepthMap(depthMapShader);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -623,15 +789,30 @@ void renderScene()
 	glBindTexture(GL_TEXTURE_2D, depthMapTexture);
 	glUniform1i(glGetUniformLocation(myCustomShader.shaderProgram, "shadowMap"), 3);
 
+	deltaSore+=0.001;
+	if (deltaSore > 360)
+		deltaSore -= 360;
+
+	glm::mat4 m = glm::mat4(1);
+	m = glm::rotate(m, deltaSore, glm::vec3(-1,0,0));
+	//15 15 2 1
+	lightDir = glm::vec3(m * glm::vec4(0,15,15,1));
+	lightDirLoc = glGetUniformLocation(myCustomShader.shaderProgram, "lightDir");
+	glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDir));
+
+	if (lightDir.y < 10) {
+		lightColor = glm::vec3(0.0f, 0.0f, 0.0f); //dark light
+		lightColorLoc = glGetUniformLocation(myCustomShader.shaderProgram, "lightColor");
+		glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
+	}
+
 	renderHouse(myCustomShader);
 	renderGround(myCustomShader);
 	renderTrees1(myCustomShader);
 	renderTrees2(myCustomShader);
-
-	model3 = glm::translate(model3, glm::vec3(-15, 0, 0));
-	model3 = glm::scale(model3, glm::vec3(5, 5, 5));
-	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model3));
-	streetLight.Draw(myCustomShader);
+	renderStreetLight(myCustomShader);
+	renderDog(myCustomShader);
+	renderAirplane(myCustomShader);
 
 	renderSkybox();
 }

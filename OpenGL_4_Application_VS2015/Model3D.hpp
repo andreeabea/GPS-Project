@@ -24,11 +24,14 @@ namespace gps {
     {
 
     public:
+
+		bool isAlphaUsed;
+
 		Model3D();
         
 		Model3D(std::string fileName);
 
-		Model3D(std::string fileName, std::string basePath);
+		Model3D(std::string fileName, std::string basePath, bool alpha);
         
 		void Draw(gps::Shader shaderProgram);
 
