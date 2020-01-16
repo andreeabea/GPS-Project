@@ -9,6 +9,7 @@
 #define Camera_hpp
 
 #include <stdio.h>
+#include <vector>
 #include "glm/glm.hpp"
 #include "glm/gtx/transform.hpp"
 
@@ -23,8 +24,14 @@ namespace gps {
         glm::mat4 getViewMatrix();
 		glm::vec3 getCameraTarget();
 		glm::vec3 getCameraPosition();
+		void setCameraTarget(glm::vec3 target);
+		void setCameraPositionY(float y);
         void move(MOVE_DIRECTION direction, float speed);
         void rotate(float pitch, float yaw);
+
+		glm::vec3 getBezierInterpolatedPoint(std::vector<glm::vec3> points, float t);
+
+		void moveAlongBezierCurve(std::vector<glm::vec3> points, float time);
         
     private:
         glm::vec3 cameraPosition;

@@ -137,9 +137,10 @@ vec3 computePointLight(vec3 lightPos, vec3 lightColor)
 	return color;
 }
 
+float fogDensity = 0.004f;
+
 float computeFog()
 {
-	float fogDensity = 0.003f;
 	float fragmentDistance = length(fragPosEye);
 	float fogFactor = exp(-pow(fragmentDistance * fogDensity, 2));
 	return clamp(fogFactor, 0.0f, 1.0f);
@@ -153,6 +154,10 @@ void main()
 	if(colorFromTexture.a < 0.1) 
 		discard;
 
+	if(dot(normalize(lightDir),vec3(0.0f,1.0f,0.0f)) < -0.001)
+	{
+		fogDensity = 0.002f;
+	}
 	float fogFactor = computeFog();
 	vec4 fogColor = vec4(0.5f, 0.5f, 0.5f, 1.0f);
 
@@ -161,11 +166,13 @@ void main()
 	vec3 color3 = computePointLight(lightPos2, lightColor2);
 
 	//vec3 color =color1;
-	vec3 color = color2 + 0.3*color1 + color3;
+	vec3 color = 0.5*color2 + 0.5*color1 + 0.5*color3;
 	
 	//night
-	//vec3 color = color2 + color3;
-
+        if(dot(normalize(lightDir),vec3(0.0f,1.0f,0.0f)) < -0.001)
+	{
+		color = 0.2*color2 + 0.2*color3;
+	}
 	fColor = fogColor*(1-fogFactor) + vec4(color * fogFactor, 1.0f);
 
         //fColor = vec4(color, 1.0f);
